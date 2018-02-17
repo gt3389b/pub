@@ -5,14 +5,18 @@ const _ = require('underscore');
 const fs = require('fs');
 const parser = require('xml2json');
 const async = require('async');
+const debug = require('debug');
+const log =   debug('ipso-pub');
+const path_root = __dirname;
+const error = console.error; 
 
 var DEFS = {};
 
 function addOid(key, value) {
-   oidd = {}
+   var oidd = {};
    oidd[key] = value;
    lwm2mid.addOid(oidd);
-   console.log("Add Oid: ",key, value);
+   log("Add Oid: ",key, value);
 }
 
 //{ ID: '5850',
@@ -26,8 +30,8 @@ function addOid(key, value) {
 //Description: 'On/Off control for the stopwatch, True=ON, False=OFF.' }
 function createResource(item) {
    //"dInState": { "access": "R", "multi": false, "mand": true, "type": "boolean", "range": null, "init": false },
-   resource = {};
-   attribs = {};
+   var resource = {};
+   var attribs = {};
    attribs['access'] = item['Operations'];
    attribs['mand'] = item['Mandatory'] == 'Optional' ? false : true;
    attribs['multi'] = item['MultipleInstances'] == 'Single' ? false : true;
@@ -45,45 +49,42 @@ function createResource(item) {
 
 
 function processPrivateDefs(defs) {
-	console.log("Adding Oids");
+	log("Adding Oids");
 	_.each(defs.oid, function(v,k) {
-		//console.log(k,v);
+		//log(k,v);
       addOid(k,v);
 		lwm2mid.addOid(oidd);
 	});
 
-	console.log("Adding Object Specific");
+	log("Adding Object Specific");
 	_.each(defs.objectSpec, function(v,k) {
       lwm2mid._defs.objectSpec[k] = v;
    })
 
-	console.log("Adding Specific Resource Ids");
+	log("Adding Specific Resource Ids");
 	_.each(defs.specificRid, function(v,k) {
-		//console.log(k,v);
+		//log(k,v);
 		lwm2mid.addSpecificRid(k,v);
 	});
 
-	console.log("Adding Specific Resource Characteristics");
+	log("Adding Specific Resource Characteristics");
 	_.each(defs.specificResrcChar, function(v,k) {
-		//console.log(k,v);
+		//log(k,v);
 		lwm2mid.addSpecificResrcChar(k,v);
 	});
 }
 
 function processPubResource(oid,oname, resource) {
-
-   //console.log(resource);
-   fres = createResource(resource);
-
+   var fres = createResource(resource);
    var rid = resource['ID'];
 
    // Specific rids are those who are limited to the object
-   //2048 - 26240
+   // 2048 - 26240
    if (parseInt(rid) < 2048) {
       var rd = {}
       rd[resource['Name']] = resource['ID'];
       lwm2mid.addSpecificRid(oname, rd);
-      console.log("Added specific RID ",oid, rd);
+      log("Added specific RID ",oid, rd);
    }
    // Unique rids are those who shared between objects
    else {
@@ -92,16 +93,16 @@ function processPubResource(oid,oname, resource) {
          rd[resource['Name']] = resource['ID'] ? resource['ID'] : resource['ResourceID'];
          try {
             lwm2mid.addUniqueRid(rd);
-            console.log("Added unique RID ",resource['Name'], rd[resource['Name']]);
+            log("Added unique RID ",resource['Name'], rd[resource['Name']]);
          } catch (ex) {
          }
 
          if (oname) {
             lwm2mid.addSpecificRid(oname, rd);
-            console.log("  Add resource: ",resource['Name']);
+            log("  Add resource: ",resource['Name']);
          }
       } catch (ex) {
-         console.log("Error adding unique Rid",ex);
+         error("Error adding unique Rid",ex);
       }
    }
 
@@ -113,7 +114,7 @@ function processPubResource(oid,oname, resource) {
 
 function processPubDefs(item) {
    if (!lwm2mid.getOid(item['ObjectID'])) {
-      //console.log("Adding", item['ObjectID'], item['Name']);
+      //log("Adding", item['ObjectID'], item['Name']);
 
       var oid = item['ObjectID'];
 
@@ -121,7 +122,7 @@ function processPubDefs(item) {
       addOid(item['Name'], oid);
 
       // add the object spec
-      ospecd = {}
+      var ospecd = {}
       if (item['MultipleInstances'] == 'Multiple') {
          ospecd['multi'] = true;
       }
@@ -134,32 +135,19 @@ function processPubDefs(item) {
       _.each(item['Resources']['Item'], function(resource) {
          processPubResource(oid, item['Name'], resource);
       });
-      //console.log(lwm2mid.objectSpec);
+      //log(lwm2mid.objectSpec);
    }
    else {
-      //console.log("Object exists ", item['ObjectID']);
+      //log("Object exists ", item['ObjectID']);
    }
 }
 
-function processPrivObjs(callback) {
-   //
-   // Process private objects
-   //
-   try {
-      var defs = require('./eaton-defs.json');
-      processPrivateDefs(defs);
-      // do stuff
-   } catch (ex) {
-      console.log("No private definitions found");
-   }
-   callback();
-}
 
 function processRegObjs(callback) {
    //
    // Process Misc
    //
-   var path = 'reg/xml'
+   var path = path_root + '/reg/xml'
    var files = fs.readdirSync(path);
 
    async.each(files, function(filename, cb) {
@@ -182,13 +170,13 @@ function processLightingRes(callback) {
    //
    // Process Lighting Resoures
    //
-   var path = 'lighting-objects/resources/json'
+   var path = path_root + '/lighting-objects/resources/json'
    var files = fs.readdirSync(path);
 
    async.each(files, function(filename, cb) {
       if (filename)
          fs.readFile(path+"/"+filename, function(err, data) {
-            items = JSON.parse(data)['Resources'];
+            var items = JSON.parse(data)['Resources'];
             _.each(items['Item'], function(item) {
                processPubResource(null, null, item);
             });
@@ -207,13 +195,13 @@ function processLightingObjs(callback) {
    // Process Lighting Objects
    //
    //
-   path = 'lighting-objects/objects/json';
+   var path = path_root + '/lighting-objects/objects/json';
    var files = fs.readdirSync(path);
 
    async.each(files, function(filename, cb) {
       if (filename)
          fs.readFile(path+"/"+filename, function(err, data) {
-            item = JSON.parse(data)['LWM2M']['Object'];
+            var item = JSON.parse(data)['LWM2M']['Object'];
             processPubDefs(item);
             cb();
          });
@@ -233,6 +221,7 @@ function printObjs(callback) {
    callback();
 }
 
+// public API:  processPrivateDefsFile
 DEFS.processPrivateDefsFile = function (filename, callback) {
    //
    // Process private objects
@@ -242,20 +231,20 @@ DEFS.processPrivateDefsFile = function (filename, callback) {
       processPrivateDefs(defs);
       // do stuff
    } catch (ex) {
-      console.log("No private definitions found: ",filename);
+      throw new Error("No private definitions found: ",filename);
    }
-   callback();
+
+   if (callback)
+      callback();
 }
 
 async.series([
-   printObjs,
+   //printObjs,
    processRegObjs,
-   printObjs,
+   //printObjs,
    processLightingRes,
    processLightingObjs,
-   printObjs,
-   async.apply(processPrivObjs, './eaton-defs.json'),
-   printObjs
+   //printObjs
 ]);
 
 module.exports = DEFS;
