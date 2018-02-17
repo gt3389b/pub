@@ -1,0 +1,28 @@
+{
+  "name": "ipso-pub",
+  "version": "1.0.0",
+  "description": "node library for the IPSO pub repo",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gt3389b/pub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gt3389b/pub/issues"
+  },
+  "homepage": "https://github.com/gt3389b/pub#readme",
+  "dependencies": {
+    "async": "^2.6.0",
+    "lwm2m-id": "^1.6.2",
+    "underscore": "^1.8.3"
+  }
+}
